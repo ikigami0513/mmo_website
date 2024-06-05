@@ -1,0 +1,158 @@
+{% extends "layout.html" %}
+
+{% block title %}Vos personnages{% endblock title %}
+
+{% block content %}
+    <div class="m-auto w-11/12 items-center">
+        {% for character in characters %}
+            <div class="flex text-white bg-third m-2 rounded-lg">
+                <div class="flex flex-col items-center justify-center text-center">
+                    <div>
+                        <img src="{{ character.classe.icon.url }}" class="w-24 h-24" />
+                    </div>
+                    <div>
+                        <p class="text-lg">{{ character.classe.name }}</p>
+                    </div>
+                </div>
+                <div class="flex flex-col items-center justify-center text-center">
+                    <div>
+                        <img src="{{ character.race.icon.url }}" class="w-24 h-24" />
+                    </div>
+                    <div>
+                        <p class="text-lg">{{ character.race.name }}</p>
+                    </div>
+                </div>
+                <div class="m-4 flex items-center justify-content">
+                    <ul>
+                        <li class="my-2">Nom : {{ character.name }}</li>
+                        <li class="my-2">Niveau : {{ character.level }}</li>
+                    </ul>
+                </div>
+                <div class="flex items-center justify-content">
+                    <ul class="flex">
+                        <li>
+                            {% if character.weapon is None %}
+                                <img src="/media/interdit.png" class="w-24 h-24 m-1"/>
+                            {% else %}
+                                <img src="{{ character.weapon.picture.url }}" class="w-24 h-24 m-1"/>
+                            {% endif %}
+                        </li>
+                        <li>
+                            {% if character.helmet is None %}
+                                <img src="/media/interdit.png" class="w-24 h-24 m-1"/>
+                            {% else %}
+                                <img src="{{ character.helmet.picture.url }}" class="w-24 h-24 m-1"/>
+                            {% endif %}
+                        </li>
+                        <li>
+                            {% if character.armor is None %}
+                                <img src="/media/interdit.png" class="w-24 h-24 m-1"/>
+                            {% else %}
+                                <img src="{{ character.armor.picture.url }}" class="w-24 h-24 m-1"/>
+                            {% endif %}
+                        </li>
+                        <li>
+                            {% if character.pant is None %}
+                                <img src="/media/interdit.png" class="w-24 h-24 m-1"/>
+                            {% else %}
+                                <img src="{{ character.pant.picture.url }}" class="w-24 h-24 m-1"/>
+                            {% endif %}
+                        </li>
+                        <li>
+                            {% if character.boots is None %}
+                                <img src="/media/interdit.png" class="w-24 h-24 m-1"/>
+                            {% else %}
+                                <img src="{{ character.boots.picture.url }}" class="w-24 h-24 m-1"/>
+                            {% endif %}
+                        </li>
+                        <li>
+                            {% if character.left_gantelet is None %}
+                                <img src="/media/interdit.png" class="w-24 h-24 m-1"/>
+                            {% else %}
+                                <img src="{{ character.left_gantelet.picture.url }}" class="w-24 h-24 m-1"/>
+                            {% endif %}
+                        </li>
+                        <li>
+                            {% if character.right_gantelet is None %}
+                                <img src="/media/interdit.png" class="w-24 h-24 m-1"/>
+                            {% else %}
+                                <img src="{{ character.right_gantelet.picture.url }}" class="w-24 h-24 m-1"/>
+                            {% endif %}
+                        </li>
+                        <li>
+                            {% if character.belt is None %}
+                                <img src="/media/interdit.png" class="w-24 h-24 m-1"/>
+                            {% else %}
+                                <img src="{{ character.belt.picture.url }}" class="w-24 h-24 m-1"/>
+                            {% endif %}
+                        </li>
+                        <li>
+                            {% if character.ring is None %}
+                                <img src="/media/interdit.png" class="w-24 h-24 m-1"/>
+                            {% else %}
+                                <img src="{{ character.ring.picture.url }}" class="w-24 h-24 m-1"/>
+                            {% endif %}
+                        </li>
+                        <li>
+                            {% if character.amulet is None %}
+                                <img src="/media/interdit.png" class="w-24 h-24 m-1"/>
+                            {% else %}
+                                <img src="{{ character.amulet.picture.url }}" class="w-24 h-24 m-1"/>
+                            {% endif %}
+                        </li>
+                    </ul>
+                </div>
+                <div class="flex items-center justify-content m-8">
+                    <button class="p-2 bg-primary mx-2 rounded-lg text-lg hover:border-solid hover:border-2">
+                        <a href="{% url "app_player_update" id=character.id %}">Modifier</a>
+                    </button>
+                    <button id="delete-character-{{ character.id }}" class="p-2 bg-red-500 mx-2 rounded-lg text-lg hover:border-solid hover:border-2">Supprimer</button>
+                    <script>
+                        document.querySelector("#delete-character-{{ character.id }}").addEventListener("click", () => {
+                            var container_confirm = document.createElement("div");
+                            container_confirm.classList.add("fixed");
+                            container_confirm.classList.add("inset-0");
+                            container_confirm.classList.add("bg-black");
+                            container_confirm.classList.add("opacity-50");
+                            container_confirm.classList.add("z-50");
+                            container_confirm.classList.add("flex");
+                            container_confirm.classList.add("items-center");
+                            container_confirm.classList.add("justify-content");
+
+                            var form_confirm = document.createElement("div");
+                            form_confirm.classList.add("m-auto");
+                            form_confirm.classList.add("p-4");
+                            form_confirm.classList.add("bg-white");
+                            form_confirm.classList.add("rounded-lg");
+                            
+                            var confirm_button = document.createElement("button");
+                            confirm_button.classList.add("m-2");
+                            confirm_button.classList.add("bg-red-500");
+                            confirm_button.classList.add("p-2");
+                            confirm_button.classList.add("rounded-lg");
+                            confirm_button.innerHTML = "Confirmer";
+                            confirm_button.addEventListener("click", () => {
+                                window.location.href = "{% url "app_player_delete" id=character.id %}";
+                            })
+                            form_confirm.appendChild(confirm_button);
+
+                            var cancel_button = document.createElement("button");
+                            cancel_button.classList.add("m-2");
+                            cancel_button.classList.add("bg-primary");
+                            cancel_button.classList.add("p-2");
+                            cancel_button.classList.add("rounded-lg");
+                            cancel_button.innerHTML = "Annuler";
+                            cancel_button.addEventListener("click", () => {
+                                document.body.removeChild(container_confirm);
+                            })
+                            form_confirm.appendChild(cancel_button);
+
+                            container_confirm.appendChild(form_confirm);
+                            document.body.appendChild(container_confirm);
+                        });
+                    </script>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endblock content %}

@@ -1,0 +1,1256 @@
+{% extends "layout.html" %}
+{% load static %}
+    
+{% block title %}Créer un personnage{% endblock title %}
+
+{% block extra_js %}
+    <script>
+        var races = {};
+        var classes = {};
+        var equipements = [{% for equipement in equipements %}"{{ equipement }}",{% endfor %}]
+        var equipements_data = {};
+        var display_equipement = { {% for key, value in display_equipement.items %}{{key}}: "{{ value }}",{% endfor %} };
+
+        var selected_equipement_panel = null;
+        var selected_equipement_button = null;
+
+        var global = true;
+        var is_loaded = false;
+        setTimeout(() => {
+            is_loaded = true;
+        }, 3000);
+
+        function getEquipementByType(type){
+            const url = `/equipements/${type}/`;
+            const csrfToken = document.getElementsByName("csrfmiddlewaretoken")[0].value;
+
+            fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then((response) => {
+                if(!response.ok){
+                    throw new Error(`Erreur HTTP: ${response.status}`)
+                }
+                return response.json();
+            })
+            .then((data) => {
+                equipements_data[data.type] = {};
+                data.items.forEach((item) => {
+                    equipements_data[data.type][item.id] = {
+                        name: item.name,
+                        required_level: item.required_level,
+                        hp: item.hp,
+                        mana: item.mana,
+                        attack: item.attack,
+                        defense: item.defense,
+                        speed: item.speed,
+                        luck: item.luck
+                    }
+
+                    const icon = document.createElement("img");
+                    icon.src = item.picture;
+                    icon.className = "h-16 w-16 cursor-move";
+                    icon.id = `${item.name_id}_icon`;
+
+                    const tooltip = document.createElement("div");
+                    tooltip.className = "hidden absolute bg-third text-white p-2 rounded m-2";
+                    tooltip.id = `${item.name_id}_tooltip`;
+                    tooltip.innerHTML = `
+                        <div>${item.name}</div>
+                        <hr class="my-2"/>
+                        <div>
+                            <p>Niveau requis : ${item.required_level}</p>
+                        </div>
+                        <hr class="my-2"/>
+                        <div>
+                            <p class="underline">Stats :</p>
+                            <ul>
+                                <li>- Points de vie : ${item.hp}</li>
+                                <li>- Mana : ${item.mana}</li>
+                                <li>- Attaque : ${item.attack}</li>
+                                <li>- Defense : ${item.defense}</li>
+                                <li>- Vitesse : ${item.speed}</li>
+                                <li>- Chance : ${item.luck}</li>
+                            </ul>
+                        </div>
+                    `;
+
+                    icon.addEventListener("mouseover", (e) => {
+                        const x = e.pageX;
+                        const y = e.pageY;
+
+                        tooltip.style.left = x + "px";
+                        tooltip.style.top = y + "px";
+                        tooltip.style.display = "block";
+                    });
+
+                    icon.addEventListener("mouseout", () => {
+                        tooltip.style.display = "none";
+                    });
+
+                    icon.addEventListener("dragstart", (ev) => {
+                        ev.dataTransfer.setData("id", item.id);
+                        ev.dataTransfer.setData("name", item.name);
+                        ev.dataTransfer.setData("id_selector", `${item.name_id}_icon`);
+                    });
+
+                    // Ajouter les éléments créés au DOM
+                    document.querySelector(`#${data.type}-selection`).appendChild(icon);
+                    document.querySelector(`#${data.type}-selection`).appendChild(tooltip);
+                });
+            })
+            .catch((error) => {
+                // Traitement des erreurs
+                console.log(error);
+            });
+        }
+
+        class Character{
+            constructor(){
+                this.name = null;
+                this._level = null;
+                this._race = null;
+                this._classe = null;
+
+                this._hp = 0;
+                this._mana = 0;
+                this._attack = 0;
+                this._defense = 0;
+                this._speed = 0;
+                this._luck = 0;
+
+                this._helmet = null;
+                this._armor = null;
+                this._pant = null;
+                this._boots = null;
+                this._left_gantelet = null;
+                this._right_gantelet = null;
+                this._ring = null;
+                this._amulet = null;
+                this._belt = null;
+
+                this.weapon_type = null;
+                this._weapon = null;
+            }
+
+            get weapon(){
+                return this._weapon;
+            }
+
+            set weapon(value){
+                const tempo_level = this.level;
+                this.level = 0;
+                if(this._weapon !== null){
+                    this.hp -= equipements_data["weapon"][this.weapon].hp;
+                    this.mana -= equipements_data["weapon"][this.weapon].mana;
+                    this.attack -= equipements_data["weapon"][this.weapon].attack;
+                    this.defense -= equipements_data["weapon"][this.weapon].defense;
+                    this.speed -= equipements_data["weapon"][this.weapon].speed;
+                    this.luck -= equipements_data["weapon"][this.weapon].luck;
+                }
+
+                if(value === null){
+                    this._weapon = value;
+                    this.level = tempo_level;
+                    return;
+                }
+
+                this._weapon = value;
+                this.hp += equipements_data["weapon"][this.weapon].hp;
+                this.mana += equipements_data["weapon"][this.weapon].mana;
+                this.attack += equipements_data["weapon"][this.weapon].attack;
+                this.defense += equipements_data["weapon"][this.weapon].defense;
+                this.speed += equipements_data["weapon"][this.weapon].speed;
+                this.luck += equipements_data["weapon"][this.weapon].luck;
+
+                this.level = tempo_level;
+                this.display_stats();
+            }
+
+            get race(){
+                return this._race;
+            }
+
+            set race(value){
+                const tempo_level = this.level;
+                this.level = 0;
+                if(this._race !== null){
+                    this.hp -= races[this._race].hp;
+                    this.mana -= races[this._race].mana;
+                    this.attack -= races[this._race].attack;
+                    this.defense -= races[this._race].defense;
+                    this.speed -= races[this._race].speed;
+                    this.luck -= races[this._race].luck;
+
+                    document.querySelector(`#${this._race}_icon`).classList.remove("border-blue-500");
+                }
+
+                this._race = value;
+                this.hp += races[this._race].hp;
+                this.mana += races[this._race].mana;
+                this.attack += races[this._race].attack;
+                this.defense += races[this._race].defense;
+                this.speed += races[this._race].speed;
+                this.luck += races[this._race].luck;
+
+                this.level = tempo_level;
+
+                document.querySelector("#race-display").innerHTML = this._race;
+                document.querySelector(`#${this._race}_icon`).classList.add("border-blue-500");
+
+                this.display_stats();
+            }
+
+            get classe(){
+                return this._classe;
+            }
+
+            set classe(value){
+                const tempo_level = this.level;
+                this.level = 0;
+                if(this._classe !== null){
+                    this.hp -= classes[this._classe].hp;
+                    this.mana -= classes[this._classe].mana;
+                    this.attack -= classes[this._classe].attack;
+                    this.defense -= classes[this._classe].defense;
+                    this.speed -= classes[this._classe].speed;
+                    this.luck -= classes[this._classe].luck;
+
+                    document.querySelector(`#${this._classe}_icon`).classList.remove("border-blue-500");
+                }
+
+                this._classe = value;
+                this.hp += classes[this._classe].hp;
+                this.mana += classes[this._classe].mana;
+                this.attack += classes[this._classe].attack;
+                this.defense += classes[this._classe].defense;
+                this.speed += classes[this._classe].speed;
+                this.luck += classes[this._classe].luck;
+
+                this.level = tempo_level;
+
+                document.querySelector("#classe-display").innerHTML = this._classe;
+                document.querySelector(`#${this._classe}_icon`).classList.add("border-blue-500");
+
+                document.querySelector("#weapon-button").classList.remove("hidden");
+                document.querySelector("#weapon-button").innerHTML = "";
+
+                this.weapon_type = classes[this.classe].weapon;
+                this.weapon = null;
+                document.querySelector("#weapon-slot").classList.remove("bg-secondary");
+                document.querySelector("#weapon-slot").innerHTML = "";
+                
+                var weapon_icon = document.createElement("img");
+                weapon_icon.src = `/media/icons/equipements/${classes[this.classe].weapon}.png`;
+                weapon_icon.classList.add("w-auto");
+                weapon_icon.classList.add("h-2-3");
+                weapon_icon.classList.add("m-auto");
+
+                document.querySelector("#weapon-button").appendChild(weapon_icon);
+
+                document.querySelector("#weapon-selection").innerHTML = "";
+                getEquipementByType(classes[this.classe].weapon);
+
+                this.display_stats();
+            }
+
+            get hp(){
+                return this._hp;
+            }
+
+            set hp(value){
+                this._hp = value;
+            }
+
+            get mana(){
+                return this._mana;
+            }
+
+            set mana(value){
+                this._mana = value;
+            }
+
+            get attack(){
+                return this._attack;
+            }
+
+            set attack(value){
+                this._attack = value;
+            }
+
+            get defense(){
+                return this._defense;
+            }
+
+            set defense(value){
+                this._defense = value;
+            }
+
+            get speed(){
+                return this._speed;
+            }
+
+            set speed(value){
+                this._speed = value;
+            }
+
+            get luck(){
+                return this._luck;
+            }
+
+            set luck(value){
+                this._luck = value;
+            }
+
+            get level(){
+                return this._level;
+            }
+
+            set level(value){
+                if(this._level !== null){
+                    this.hp /= 1+(this._level/50);
+                    this.mana /= 1+(this._level/50);
+                    this.attack /= 1+(this._level/50);
+                    this.defense /= 1+(this._level/50);
+                    this.speed /= 1+(this._level/50);
+                    this.luck /= 1+(this._level/50);
+                }
+
+                this._level = value;
+
+                if(is_loaded === true && global === true){
+                    if(this.helmet !== null){
+                        if(equipements_data["helmet"][this.helmet].required_level > this.level){
+                            this.hp -= equipements_data["helmet"][this.helmet].hp;
+                            this.mana -= equipements_data["helmet"][this.helmet].mana;
+                            this.attack -= equipements_data["helmet"][this.helmet].attack;
+                            this.defense -= equipements_data["helmet"][this.helmet].defense;
+                            this.speed -= equipements_data["helmet"][this.helmet].speed;
+                            this.luck -= equipements_data["helmet"][this.helmet].luck;
+
+                            this._helmet = null;
+                            document.querySelector("#helmet-slot").innerHTML = "";
+                            document.querySelector("#helmet-slot").classList.remove("bg-secondary");
+                        }
+                    }
+
+                    if(this.armor !== null){
+                        if(equipements_data["armor"][this.armor].required_level > this.level){
+                            this.hp -= equipements_data["armor"][this.armor].hp;
+                            this.mana -= equipements_data["armor"][this.armor].mana;
+                            this.attack -= equipements_data["armor"][this.armor].attack;
+                            this.defense -= equipements_data["armor"][this.armor].defense;
+                            this.speed -= equipements_data["armor"][this.armor].speed;
+                            this.luck -= equipements_data["armor"][this.armor].luck;
+
+                            this._armor = null;
+                            document.querySelector("#armor-slot").innerHTML = "";
+                            document.querySelector("#armor-slot").classList.remove("bg-secondary");
+                        }
+                    }
+
+                    if(this.pant !== null){
+                        if(equipements_data["pant"][this.pant].required_level > this.level){
+                            this.hp -= equipements_data["pant"][this.pant].hp;
+                            this.mana -= equipements_data["pant"][this.pant].mana;
+                            this.attack -= equipements_data["pant"][this.pant].attack;
+                            this.defense -= equipements_data["pant"][this.pant].defense;
+                            this.speed -= equipements_data["pant"][this.pant].speed;
+                            this.luck -= equipements_data["pant"][this.pant].luck;
+
+                            this._pant = null;
+                            document.querySelector("#pant-slot").innerHTML = "";
+                            document.querySelector("#pant-slot").classList.remove("bg-secondary");
+                        }
+                    }
+
+                    if(this.boots !== null){
+                        if(equipements_data["boots"][this.boots].required_level > this.level){
+                            this.hp -= equipements_data["boots"][this.boots].hp;
+                            this.mana -= equipements_data["boots"][this.boots].mana;
+                            this.attack -= equipements_data["boots"][this.boots].attack;
+                            this.defense -= equipements_data["boots"][this.boots].defense;
+                            this.speed -= equipements_data["boots"][this.boots].speed;
+                            this.luck -= equipements_data["boots"][this.boots].luck;
+
+                            this._boots = null;
+                            document.querySelector("#boots-slot").innerHTML = "";
+                            document.querySelector("#boots-slot").classList.remove("bg-secondary");
+                        }
+                    }
+
+                    if(this.left_gantelet !== null){
+                        if(equipements_data["gantelet"][this.left_gantelet].required_level > this.level){
+                            this.hp -= equipements_data["gantelet"][this.left_gantelet].hp;
+                            this.mana -= equipements_data["gantelet"][this.left_gantelet].mana;
+                            this.attack -= equipements_data["gantelet"][this.left_gantelet].attack;
+                            this.defense -= equipements_data["gantelet"][this.left_gantelet].defense;
+                            this.speed -= equipements_data["gantelet"][this.left_gantelet].speed;
+                            this.luck -= equipements_data["gantelet"][this.left_gantelet].luck;
+
+                            this._left_gantelet = null;
+                            document.querySelector("#left_gantelet-slot").innerHTML = "";
+                            document.querySelector("#left_gantelet-slot").classList.remove("bg-secondary");
+                        }
+                    }
+
+                    if(this.right_gantelet !== null){
+                        if(equipements_data["gantelet"][this.right_gantelet].required_level > this.level){
+                            this.hp -= equipements_data["gantelet"][this.right_gantelet].hp;
+                            this.mana -= equipements_data["gantelet"][this.right_gantelet].mana;
+                            this.attack -= equipements_data["gantelet"][this.right_gantelet].attack;
+                            this.defense -= equipements_data["gantelet"][this.right_gantelet].defense;
+                            this.speed -= equipements_data["gantelet"][this.right_gantelet].speed;
+                            this.luck -= equipements_data["gantelet"][this.right_gantelet].luck;
+
+                            this._right_gantelet = null;
+                            document.querySelector("#right_gantelet-slot").innerHTML = "";
+                            document.querySelector("#right_gantelet-slot").classList.remove("bg-secondary");
+                        }
+                    }
+
+                    if(this.belt !== null){
+                        if(equipements_data["belt"][this.belt].required_level > this.level){
+                            this.hp -= equipements_data["belt"][this.belt].hp;
+                            this.mana -= equipements_data["belt"][this.belt].mana;
+                            this.attack -= equipements_data["belt"][this.belt].attack;
+                            this.defense -= equipements_data["belt"][this.belt].defense;
+                            this.speed -= equipements_data["belt"][this.belt].speed;
+                            this.luck -= equipements_data["belt"][this.belt].luck;
+
+                            this._belt = null;
+                            document.querySelector("#belt-slot").innerHTML = "";
+                            document.querySelector("#belt-slot").classList.remove("bg-secondary");
+                        }
+                    }
+
+                    if(this.amulet !== null){
+                        if(equipements_data["amulet"][this.amulet].required_level > this.level){
+                            this.hp -= equipements_data["amulet"][this.amulet].hp;
+                            this.mana -= equipements_data["amulet"][this.amulet].mana;
+                            this.attack -= equipements_data["amulet"][this.amulet].attack;
+                            this.defense -= equipements_data["amulet"][this.amulet].defense;
+                            this.speed -= equipements_data["amulet"][this.amulet].speed;
+                            this.luck -= equipements_data["amulet"][this.amulet].luck;
+
+                            this._amulet = null;
+                            document.querySelector("#amulet-slot").innerHTML = "";
+                            document.querySelector("#amulet-slot").classList.remove("bg-secondary");
+                        }
+                    }
+
+                    if(this.ring !== null){
+                        if(equipements_data["ring"][this.ring].required_level > this.level){
+                            this.hp -= equipements_data["ring"][this.ring].hp;
+                            this.mana -= equipements_data["ring"][this.ring].mana;
+                            this.attack -= equipements_data["ring"][this.ring].attack;
+                            this.defense -= equipements_data["ring"][this.ring].defense;
+                            this.speed -= equipements_data["ring"][this.ring].speed;
+                            this.luck -= equipements_data["ring"][this.ring].luck;
+
+                            this._ring = null;
+                            document.querySelector("#ring-slot").innerHTML = "";
+                            document.querySelector("#ring-slot").classList.remove("bg-secondary");
+                        }
+                    }
+
+                    if(this.weapon !== null){
+                        if(equipements_data["weapon"][this.weapon].required_level > this.level){
+                            this.hp -= equipements_data["weapon"][this.weapon].hp;
+                            this.mana -= equipements_data["weapon"][this.weapon].mana;
+                            this.attack -= equipements_data["weapon"][this.weapon].attack;
+                            this.defense -= equipements_data["weapon"][this.weapon].defense;
+                            this.speed -= equipements_data["weapon"][this.weapon].speed;
+                            this.luck -= equipements_data["weapon"][this.weapon].luck;
+
+                            this._weapon = null;
+                            document.querySelector("#weapon-slot").innerHTML = "";
+                            document.querySelector("#weapon-slot").classList.remove("bg-secondary");
+                        }
+                    }
+                }
+                global = true;
+
+                this.hp *= 1+(this._level/50);
+                this.mana *= 1+(this._level/50);
+                this.attack *= 1+(this._level/50);
+                this.defense *= 1+(this._level/50);
+                this.speed *= 1+(this._level/50);
+                this.luck *= 1+(this._level/50);
+
+                this.display_stats();
+            }
+
+            get helmet(){
+                return this._helmet;
+            }
+
+            set helmet(value){
+                const tempo_level = this.level;
+                this.level = 0;
+                if(this.helmet !== null){
+                    this.hp -= equipements_data["helmet"][this.helmet].hp;
+                    this.mana -= equipements_data["helmet"][this.helmet].mana;
+                    this.attack -= equipements_data["helmet"][this.helmet].attack;
+                    this.defense -= equipements_data["helmet"][this.helmet].defense;
+                    this.speed -= equipements_data["helmet"][this.helmet].speed;
+                    this.luck -= equipements_data["helmet"][this.helmet].luck;
+                }
+
+                this._helmet = value;
+                this.hp += equipements_data["helmet"][this.helmet].hp;
+                this.mana += equipements_data["helmet"][this.helmet].mana;
+                this.attack += equipements_data["helmet"][this.helmet].attack;
+                this.defense += equipements_data["helmet"][this.helmet].defense;
+                this.speed += equipements_data["helmet"][this.helmet].speed;
+                this.luck += equipements_data["helmet"][this.helmet].luck;
+
+                this.level = tempo_level;
+                this.display_stats();
+            }
+
+            get armor(){
+                return this._armor;
+            }
+
+            set armor(value){
+                const tempo_level = this.level;
+                this.level = 0;
+                if(this.armor !== null){
+                    this.hp -= equipements_data["armor"][this.armor].hp;
+                    this.mana -= equipements_data["armor"][this.armor].mana;
+                    this.attack -= equipements_data["armor"][this.armor].attack;
+                    this.defense -= equipements_data["armor"][this.armor].defense;
+                    this.speed -= equipements_data["armor"][this.armor].speed;
+                    this.luck -= equipements_data["armor"][this.armor].luck;
+                }
+
+                this._armor = value;
+                this.hp += equipements_data["armor"][this.armor].hp;
+                this.mana += equipements_data["armor"][this.armor].mana;
+                this.attack += equipements_data["armor"][this.armor].attack;
+                this.defense += equipements_data["armor"][this.armor].defense;
+                this.speed += equipements_data["armor"][this.armor].speed;
+                this.luck += equipements_data["armor"][this.armor].luck;
+
+                this.level = tempo_level;
+                this.display_stats();
+            }
+
+            get pant(){
+                return this._pant;
+            }
+
+            set pant(value){
+                const tempo_level = this.level;
+                this.level = 0;
+                if(this.pant !== null){
+                    this.hp -= equipements_data["pant"][this.pant].hp;
+                    this.mana -= equipements_data["pant"][this.pant].mana;
+                    this.attack -= equipements_data["pant"][this.pant].attack;
+                    this.defense -= equipements_data["pant"][this.pant].defense;
+                    this.speed -= equipements_data["pant"][this.pant].speed;
+                    this.luck -= equipements_data["pant"][this.pant].luck;
+                }
+
+                this._pant = value;
+                this.hp += equipements_data["pant"][this.pant].hp;
+                this.mana += equipements_data["pant"][this.pant].mana;
+                this.attack += equipements_data["pant"][this.pant].attack;
+                this.defense += equipements_data["pant"][this.pant].defense;
+                this.speed += equipements_data["pant"][this.pant].speed;
+                this.luck += equipements_data["pant"][this.pant].luck;
+
+                this.level = tempo_level;
+                this.display_stats;
+            }
+
+            get boots(){
+                return this._boots;
+            }
+
+            set boots(value){
+                const tempo_level = this.level;
+                this.level = 0;
+                if(this.boots !== null){
+                    this.hp -= equipements_data["boots"][this.boots].hp;
+                    this.mana -= equipements_data["boots"][this.boots].mana;
+                    this.attack -= equipements_data["boots"][this.boots].attack;
+                    this.defense -= equipements_data["boots"][this.boots].defense;
+                    this.speed -= equipements_data["boots"][this.boots].speed;
+                    this.luck -= equipements_data["boots"][this.boots].luck;
+                }
+
+                this._boots = value;
+                this.hp += equipements_data["boots"][this.boots].hp;
+                this.mana += equipements_data["boots"][this.boots].mana;
+                this.attack += equipements_data["boots"][this.boots].attack;
+                this.defense += equipements_data["boots"][this.boots].defense;
+                this.speed += equipements_data["boots"][this.boots].speed;
+                this.luck += equipements_data["boots"][this.boots].luck;
+
+                this.level = tempo_level;
+                this.display_stats();
+            }
+
+            get left_gantelet(){
+                return this._left_gantelet;
+            }
+
+            set left_gantelet(value){
+                const tempo_level = this.level;
+                this.level = 0;
+                if(this.left_gantelet !== null){
+                    this.hp -= equipements_data["gantelet"][this.left_gantelet].hp;
+                    this.mana -= equipements_data["gantelet"][this.left_gantelet].mana;
+                    this.attack -= equipements_data["gantelet"][this.left_gantelet].attack;
+                    this.defense -= equipements_data["gantelet"][this.left_gantelet].defense;
+                    this.speed -= equipements_data["gantelet"][this.left_gantelet].speed;
+                    this.luck -= equipements_data["gantelet"][this.left_gantelet].luck;
+                }
+
+                this._left_gantelet = value;
+                this.hp += equipements_data["gantelet"][this.left_gantelet].hp;
+                this.mana += equipements_data["gantelet"][this.left_gantelet].mana;
+                this.attack += equipements_data["gantelet"][this.left_gantelet].attack;
+                this.defense += equipements_data["gantelet"][this.left_gantelet].defense;
+                this.speed += equipements_data["gantelet"][this.left_gantelet].speed;
+                this.luck += equipements_data["gantelet"][this.left_gantelet].luck;
+
+                this.level = tempo_level;
+                this.display_stats();
+            }
+
+            get right_gantelet(){
+                return this._right_gantelet;
+            }
+
+            set right_gantelet(value){
+                const tempo_level = this.level;
+                this.level = 0;
+                if(this.right_gantelet !== null){
+                    this.hp -= equipements_data["gantelet"][this.right_gantelet].hp;
+                    this.mana -= equipements_data["gantelet"][this.right_gantelet].mana;
+                    this.attack -= equipements_data["gantelet"][this.right_gantelet].attack;
+                    this.defense -= equipements_data["gantelet"][this.right_gantelet].defense;
+                    this.speed -= equipements_data["gantelet"][this.right_gantelet].speed;
+                    this.luck -= equipements_data["gantelet"][this.right_gantelet].luck;
+                }
+
+                this._right_gantelet = value;
+                this.hp += equipements_data["gantelet"][this.right_gantelet].hp;
+                this.mana += equipements_data["gantelet"][this.right_gantelet].mana;
+                this.attack += equipements_data["gantelet"][this.right_gantelet].attack;
+                this.defense += equipements_data["gantelet"][this.right_gantelet].defense;
+                this.speed += equipements_data["gantelet"][this.right_gantelet].speed;
+                this.luck += equipements_data["gantelet"][this.right_gantelet].luck;
+
+                this.level = tempo_level;
+                this.display_stats();
+            }
+
+            get ring(){
+                return this._ring;
+            }
+
+            set ring(value){
+                const tempo_level = this.level;
+                this.level = 0;
+                if(this.ring !== null){
+                    this.hp -= equipements_data["ring"][this.ring].hp;
+                    this.mana -= equipements_data["ring"][this.ring].mana;
+                    this.attack -= equipements_data["ring"][this.ring].attack;
+                    this.defense -= equipements_data["ring"][this.ring].defense;
+                    this.speed -= equipements_data["ring"][this.ring].speed;
+                    this.luck -= equipements_data["ring"][this.ring].luck;
+                }
+
+                this._ring = value;
+                this.hp += equipements_data["ring"][this.ring].hp;
+                this.mana += equipements_data["ring"][this.ring].mana;
+                this.attack += equipements_data["ring"][this.ring].attack;
+                this.defense += equipements_data["ring"][this.ring].defense;
+                this.speed += equipements_data["ring"][this.ring].speed;
+                this.luck += equipements_data["ring"][this.ring].luck;
+
+                this.level = tempo_level;
+                this.display_stats();
+            }
+
+            get amulet(){
+                return this._amulet;
+            }
+
+            set amulet(value){
+                const tempo_level = this.level;
+                this.level = 0;
+                if(this.amulet !== null){
+                    this.hp -= equipements_data["amulet"][this.amulet].hp;
+                    this.mana -= equipements_data["amulet"][this.amulet].mana;
+                    this.attack -= equipements_data["amulet"][this.amulet].attack;
+                    this.defense -= equipements_data["amulet"][this.amulet].defense;
+                    this.speed -= equipements_data["amulet"][this.amulet].speed;
+                    this.luck -= equipements_data["amulet"][this.amulet].luck;
+                }
+
+                this._amulet = value;
+                this.hp += equipements_data["amulet"][this.amulet].hp;
+                this.mana += equipements_data["amulet"][this.amulet].mana;
+                this.attack += equipements_data["amulet"][this.amulet].attack;
+                this.defense += equipements_data["amulet"][this.amulet].defense;
+                this.speed += equipements_data["amulet"][this.amulet].speed;
+                this.luck += equipements_data["amulet"][this.amulet].luck;
+
+                this.level = tempo_level;
+                this.display_stats();
+            }
+
+            get belt(){
+                return this._belt;
+            }
+
+            set belt(value){
+                const tempo_level = this.level;
+                this.level = 0;
+                if(this.belt !== null){
+                    this.hp -= equipements_data["belt"][this.belt].hp;
+                    this.mana -= equipements_data["belt"][this.belt].mana;
+                    this.attack -= equipements_data["belt"][this.belt].attack;
+                    this.defense -= equipements_data["belt"][this.belt].defense;
+                    this.speed -= equipements_data["belt"][this.belt].speed;
+                    this.luck -= equipements_data["belt"][this.belt].luck;
+                }
+
+                this._belt = value;
+                this.hp += equipements_data["belt"][this.belt].hp;
+                this.mana += equipements_data["belt"][this.belt].mana;
+                this.attack += equipements_data["belt"][this.belt].attack;
+                this.defense += equipements_data["belt"][this.belt].defense;
+                this.speed += equipements_data["belt"][this.belt].speed;
+                this.luck += equipements_data["belt"][this.belt].luck;
+                
+                this.level = tempo_level;
+                this.display_stats();
+            }
+
+            set_equipement(type, value, side=null){
+                switch(type){
+                    case 'helmet':
+                        this.helmet = value;
+                        break;
+
+                    case 'armor':
+                        this.armor = value;
+                        break;
+
+                    case 'pant':
+                        this.pant = value;
+                        break;
+
+                    case 'boots':
+                        this.boots = value;
+                        break;
+
+                    case 'gantelet':
+                        if (side === "left"){
+                            this.left_gantelet = value;
+                        }
+                        else if( side === "right"){
+                            this.right_gantelet = value;
+                        }
+                        break;
+
+                    case 'belt':
+                        this.belt = value;
+                        break;
+
+                    case 'ring':
+                        this.ring = value;
+                        break;
+
+                    case 'amulet':
+                        this.amulet = value;
+                        break;
+
+                    case 'weapon':
+                        this.weapon = value;
+                        break;
+
+                    default:
+                        break;
+                }
+            }
+
+            display_stats(){
+                document.querySelector("#display_hp").innerHTML = this.hp.toFixed(2);
+                document.querySelector("#display_mana").innerHTML = this.mana.toFixed(2);
+                document.querySelector("#display_attack").innerHTML = this.attack.toFixed(2);
+                document.querySelector("#display_defense").innerHTML = this.defense.toFixed(2);
+                document.querySelector("#display_speed").innerHTML = this.speed.toFixed(2);
+                document.querySelector("#display_luck").innerHTML = this.luck.toFixed(2);
+            }
+        }
+
+        var character = new Character();
+
+        function dragover_handler(ev){
+            ev.preventDefault();
+            ev.dataTransfer.dropEffect = "move";
+        }
+
+        function drop_handler(ev, type, side){
+            ev.preventDefault();
+
+            const id = ev.dataTransfer.getData("id");
+            if(id in equipements_data[type]){
+                if(equipements_data[type][id].required_level > character.level){
+                    const name = ev.dataTransfer.getData("name");
+                    var error_message = document.createElement("div");
+                    error_message.classList.add("absolute");
+                    error_message.classList.add("bg-red-800");
+                    error_message.classList.add("text-white");
+                    error_message.classList.add("p-2");
+                    error_message.classList.add("left-1/2");
+                    error_message.classList.add("top-20");
+
+                    error_message.innerHTML = `Votre niveau est trop bas. Niveau requis : ${equipements_data[type][id].required_level}.`;
+                    document.body.appendChild(error_message);
+
+                    error_message.addEventListener("click", () => {
+                        error_message.removeEventListener("click", () => {});
+                        document.body.removeChild(error_message);
+                    })
+
+                    setTimeout(function(){
+                        if(document.body.contains(error_message)){
+                            document.body.removeChild(error_message);
+                        }
+                    }, 5000);
+                    return;
+                }
+
+                const data = ev.dataTransfer.getData("id_selector");
+                ev.target.innerHTML = "";
+                ev.target.classList.add("bg-secondary");
+                var append = document.querySelector(`#${data}`).cloneNode(true);
+                append.classList.remove("cursor-move");
+                append.classList.add("border-solid");
+                append.classList.add("border-2");
+                append.classList.add("rounded-lg");
+                append.id = append.id + "-slot";
+                ev.target.appendChild(append);
+                global = false;
+                character.set_equipement(type, id, side)
+            }
+            else{
+                const name = ev.dataTransfer.getData("name");
+                var error_message = document.createElement("div");
+                error_message.classList.add("absolute");
+                error_message.classList.add("bg-red-800");
+                error_message.classList.add("text-white");
+                error_message.classList.add("p-2");
+                error_message.classList.add("left-1/2");
+                error_message.classList.add("top-20");
+
+                error_message.innerHTML = `${name.charAt(0).toUpperCase() + name.slice(1)} n'est pas ${display_equipement[type]}.`;
+                document.body.appendChild(error_message);
+
+                error_message.addEventListener("click", () => {
+                    error_message.removeEventListener("click", () => {});
+                    document.body.removeChild(error_message);
+                });
+
+                setTimeout(function(){
+                    if(document.body.contains(error_message)){
+                        document.body.removeChild(error_message);
+                    }
+                }, 5000);
+            }
+        }
+    </script>
+{% endblock extra_js %}
+
+{% block content %}
+    {% csrf_token %}
+    <button id="save-button" class="bg-primary absolute right-10 top-20 text-white rounded-lg p-2 hover:border-solid hover:border-2">
+        sauvegarder
+    </button>
+    <script>
+        document.querySelector("#save-button").addEventListener("click", () => {
+            const url = window.location.pathname;
+            const csrfToken = document.getElementsByName("csrfmiddlewaretoken")[0].value;
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                },
+                body: JSON.stringify({
+                    name: character.name,
+                    classe: character.classe,
+                    race: character.race,
+                    level: character.level,
+                    weapon: character.weapon,
+                    helmet: character.helmet,
+                    armor: character.armor,
+                    pant: character.pant,
+                    boots: character.boots,
+                    left_gantelet: character.left_gantelet,
+                    right_gantelet: character.right_gantelet,
+                    ring: character.ring,
+                    amulet: character.amulet,
+                    belt: character.belt,
+                })
+            })
+            .then((response) => {
+                if(!response.ok){
+                    throw new Error(`Erreur HTTP: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then((data) => {
+                if(data.success){
+                    var success_message = document.createElement("div");
+                    success_message.classList.add("absolute");
+                    success_message.classList.add("bg-red-800");
+                    success_message.classList.add("text-white");
+                    success_message.classList.add("p-2");
+                    success_message.classList.add("left-1/2");
+                    success_message.classList.add("top-20");
+
+                    success_message.innerHTML = `Votre personnage a bien été sauvegardé.`;
+                    document.body.appendChild(success_message);
+
+                    success_message.addEventListener("click", () => {
+                        success_message.removeEventListener("click", () => {});
+                        document.body.removeChild(success_message);
+                    });
+
+                    setTimeout(() => {
+                        window.location.href = "{% url "app_player_list" %}";
+                    }, 2000)
+                }
+                else{
+                    var error_message = document.createElement("div");
+                    error_message.classList.add("absolute");
+                    error_message.classList.add("bg-red-800");
+                    error_message.classList.add("text-white");
+                    error_message.classList.add("p-2");
+                    error_message.classList.add("left-1/2");
+                    error_message.classList.add("top-20");
+                    
+                    switch(data.reason){
+                        case "name":
+                            error_message.innerHTML = `Merci de renseigner un nom pour votre personnage.`;
+                            break;
+
+                        case "race":
+                            error_message.innerHTML = `Merci de renseigner une race pour votre personnage.`;
+                            break;
+                        
+                        case "classe":
+                            error_message.innerHTML = `Merci de renseigner une classe pour votre personnage.`;
+                            break;
+
+                        case "name taken":
+                            error_message.innerHTML = `Vous possédez déjà un personnage avec ce nom.`;
+                            break;
+
+                        case "classe not exists":
+                            error_message.innerHTML = `Erreur: la classe renseignée n'existe pas.`;
+                            break;
+
+                        case "race not exists":
+                            error_message.innerHTML = `Erreur: la race renseigne n'existe pas.`;
+                            break;
+
+                        default:
+                            error_message.innerHTML = `Erreur inconnue. Veuillez réessayer.`;
+                            break;
+                    }
+                    document.body.appendChild(error_message);
+                    error_message.addEventListener("click", () => {
+                        error_message.removeEventListener("click", () => {});
+                        document.body.removeChild(error_message);
+                    });
+                }
+            })
+            .catch((error) => {
+                console.log(error);
+            })
+        });
+    </script>
+    <div class="flex h-[calc(100vh-80px)]">
+        <div class="w-1/4 m-2 border-solid border-2 rounded-xl">
+            <div class="h-2/3 flex items-center justify-center">
+                <img src="/media/human.png" class="h-[95%]"/>
+                <div id="amulet-slot" class="text-white absolute border-solid border-2 border-primary h-24 w-24 top-19 left-left flex justify-center items-center" ondrop="drop_handler(event, 'amulet')" ondragover="dragover_handler(event)">
+                </div>
+                <div id="helmet-slot" class="text-white absolute border-solid border-2 border-primary h-24 w-24 top-19 flex justify-center items-center" ondrop="drop_handler(event, 'helmet')" ondragover="dragover_handler(event)">
+                </div>
+                <div id="ring-slot" class="text-white absolute border-solid border-2 border-primary h-24 w-24 top-19 left-right flex justify-center items-center" ondrop="drop_handler(event, 'ring')" ondragover="dragover_handler(event)">
+                </div>
+                <div id="armor-slot" class="text-white absolute border-solid border-2 border-primary h-24 w-24 top-56 flex justify-center items-center" ondrop="drop_handler(event, 'armor')" ondragover="dragover_handler(event)">
+                </div>
+                <div id="weapon-slot" class="text-white absolute border-solid border-2 border-primary h-24 w-24 top-56 left-right flex justify-center items-center" ondrop="drop_handler(event, 'weapon')" ondragover="dragover_handler(event)">
+                </div>
+                <div id="belt-slot" class="text-white absolute border-solid border-2 border-primary h-24 w-24 top-82 flex justify-center items-center" ondrop="drop_handler(event, 'belt')" ondragover="dragover_handler(event)">
+                </div>
+                <div id="left-gantelet-slot" class="text-white absolute border-solid border-2 border-primary h-24 w-24 top-82 left-left flex justify-center items-center" ondrop="drop_handler(event, 'gantelet', 'left')" ondragover="dragover_handler(event)">
+                </div>
+                <div id="right-gantelet-slot" class="text-white absolute border-solid border-2 border-primary h-24 w-24 top-82 left-right flex justify-center items-center" ondrop="drop_handler(event, 'gantelet', 'right')" ondragover="dragover_handler(event)">
+                </div>
+                <div id="pant-slot" class="text-white absolute border-solid border-2 border-primary h-24 w-24 top-108 flex justify-center items-center" ondrop="drop_handler(event, 'pant')" ondragover="dragover_handler(event)">
+                </div>
+                <div id="boots-slot" class="text-white absolute border-solid border-2 border-primary h-24 w-24 top-134 flex justify-center items-center" ondrop="drop_handler(event, 'boots')" ondragover="dragover_handler(event)">
+                </div>
+            </div>
+            <div class="h-1/3 text-white m-2">
+                <p class="mx-2 my-2">Nom : <input type="text" id="character_name" name="character_name" class="text-black rounded-lg p-2"/></p>
+                <p class="mx-2 my-2">Niveau : <input type="number" id="character_level" name="character_level" class="text-black rounded-lg p-2"/></p>
+                <p class="mx-2 my-2">Race : <span id="race-display"></span></p>
+                <p class="mx-2 my-2">Classe : <span id="classe-display"></span></p>
+                <div class="my-2">
+                    <p class="underline text-xl">Stats</p>
+                    <div class="my-2 flex items-center justify-center">
+                        <ul class="m-auto">
+                            <li>Points de vie : <span id="display_hp"></span></li>
+                            <li>Mana : <span id="display_mana"></span></li>
+                            <li>Attaque : <span id="display_attack"></span></li>
+                        </ul>
+                        <ul class="m-auto">
+                            <li>Defense : <span id="display_defense"></span></li>
+                            <li>Vitesse : <span id="display_speed"></span></li>
+                            <li>Chance : <span id="display_luck"></span></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <script>
+                document.querySelector("#character_name").addEventListener('input', () => {
+                    character.name = document.querySelector("#character_name").value;
+                });
+                document.querySelector("#character_level").addEventListener('input', () => {
+                    if(document.querySelector("#character_level").value < 0){
+                        document.querySelector("#character_level").value = 0;
+                    }
+                    character.level = document.querySelector("#character_level").value;
+                });
+                character.display_stats();
+            </script>
+        </div>
+        <div class="w-3/4 m-2 border-solid border-2 rounded-xl">
+            <div id="races-selection" class="m-2">
+                <div class="text-xl text-white underline">Races</div>
+                <div class="flex">
+                    {% for race in races %}
+                        <img src="{{ race.icon.url }}" alt="icone de la race {{ race.name }}" class="rounded-full border-solid border-2 h-16 m-2 hover:border-primary" id="{{ race.name }}_icon"/>
+                        <div class="hidden absolute bg-third text-white p-2 rounded m-2" id="{{ race.name }}_tooltip">
+                            <div>{{ race.name|capfirst }}</div>
+                            <hr class="my-2"/>
+                            <div>
+                                <p class="underline">Bonus :</p>
+                                <ul>
+                                    <li>- Points de vie : {{ race.hp }}</li>
+                                    <li>- Mana : {{ race.mana }}</li>
+                                    <li>- Attaque : {{ race.attack }}</li>
+                                    <li>- Defense : {{ race.defense }}</li>
+                                    <li>- Vitesse : {{ race.speed }}</li>
+                                    <li>- Chance : {{ race.luck }}</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <script>
+                            races["{{ race.name }}"] = {
+                                hp: {{ race.hp }},
+                                mana: {{ race.mana }},
+                                attack: {{ race.attack }},
+                                defense: {{ race.defense }},
+                                speed: {{ race.speed }},
+                                luck: {{ race.luck }}
+                            }
+
+                            document.querySelector("#{{ race.name }}_icon").addEventListener("mouseover", (e) => {
+                                const x = e.pageX;
+                                const y = e.pageY;
+
+                                document.querySelector("#{{ race.name }}_tooltip").style.left = x + "px";
+                                document.querySelector("#{{ race.name }}_tooltip").style.top = y + "px";
+                                document.querySelector("#{{ race.name }}_tooltip").style.display = "block";
+                            });
+
+                            document.querySelector("#{{ race.name }}_icon").addEventListener("mouseout", () => {
+                                document.querySelector("#{{ race.name }}_tooltip").style.display = "none";
+                            });
+
+                            document.querySelector("#{{ race.name }}_icon").addEventListener("click", () => {
+                                character.race = "{{ race.name }}";
+                            });
+                        </script>
+                    {% endfor %}
+                </div>
+            </div>
+            <div id="classes-selection" class="m-2">
+                <div class="text-xl text-white underline">Classes</div>
+                <div class="flex">
+                    {% for classe in classes %}
+                        <img src="{{ classe.icon.url }}" alt="icone de la classe {{ classe.name }}" class="rounded-full border-solid border-2 h-16 m-2 hover:border-primary" id="{{ classe.name }}_icon"/>
+                        <div class="hidden absolute bg-third text-white p-2 rounded m-2" id="{{ classe.name }}_tooltip">
+                            <div>{{ classe.name|capfirst }}</div>
+                            <hr class="my-2"/>
+                            <div>
+                                <ul>
+                                    <li>Arme : {{ classe.weapon|capfirst }}</li>
+                                </ul>
+                            </div>
+                            <hr class="my-2"/>
+                            <div>
+                                <p class="underline">Bonus :</p>
+                                <ul>
+                                    <li>- Points de vie : {{ classe.hp }}</li>
+                                    <li>- Mana : {{ classe.mana }}</li>
+                                    <li>- Attaque : {{ classe.attack }}</li>
+                                    <li>- Defense : {{ classe.defense }}</li>
+                                    <li>- Vitesse : {{ classe.speed }}</li>
+                                    <li>- Chance : {{ classe.luck }}</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <script>
+                            classes["{{ classe.name }}"] = {
+                                hp: {{ classe.hp }},
+                                mana: {{ classe.mana }},
+                                attack: {{ classe.attack }},
+                                defense: {{ classe.defense }},
+                                speed: {{ classe.speed }},
+                                luck: {{ classe.luck }},
+                                weapon: "{{ classe.weapon }}"
+                            }
+
+                            document.querySelector("#{{ classe.name}}_icon").addEventListener("mouseover", (e) => {
+                                const x = e.pageX;
+                                const y = e.pageY;
+
+                                document.querySelector("#{{ classe.name }}_tooltip").style.left = x + "px";
+                                document.querySelector("#{{ classe.name }}_tooltip").style.top = y + "px";
+                                document.querySelector("#{{ classe.name }}_tooltip").style.display = "block";
+                            });
+
+                            document.querySelector("#{{ classe.name }}_icon").addEventListener("mouseout", () => {
+                                document.querySelector("#{{ classe.name }}_tooltip").style.display = "none";
+                            });
+
+                            document.querySelector("#{{ classe.name }}_icon").addEventListener("click", () => {
+                                character.classe = "{{ classe.name }}";
+                            });
+                        </script>
+                    {% endfor %}
+                </div>
+            </div>
+            <div id="equipements-selection" class="m-2">
+                <div class="text-xl text-white underline">Équipements</div>
+                <div class="flex m-2">
+                    <button class="border-blue-500 border-solid border-2 bg-primary p-2 m-1 rounded-xl h-20 w-20" id="helmet-button">
+                        <img src="/media/icons/equipements/helmet.png" alt="icone des casques" class="w-auto h-2/3 m-auto"/>
+                        <p class="text-white">Casques</p>
+                    </button>
+                    <button class="bg-primary p-2 m-1 rounded-xl h-20 w-20" id="armor-button">
+                        <img src="/media/icons/equipements/armor.png" alt="icone des armures" class="w-auto h-2/3 m-auto"/>
+                        <p class="text-white">Armures</p>
+                    </button>
+                    <button class="bg-primary p-2 m-1 rounded-xl h-20 w-20" id="pant-button">
+                        <img src="/media/icons/equipements/pant.png" alt="icone des pantalons" class="w-auto h-2/3 m-auto"/>
+                        <p class="text-white">Pantalons</p>
+                    </button>
+                    <button class="bg-primary p-2 m-1 rounded-xl h-20 w-20" id="boots-button">
+                        <img src="/media/icons/equipements/boots.png" alt="icone des bottes" class="w-auto h-2/3 m-auto"/>
+                        <p class="text-white">Bottes</p>
+                    </button>
+                    <button class="bg-primary p-2 m-1 rounded-xl h-20 w-20" id="gantelet-button">
+                        <img src="/media/icons/equipements/gantelet.png" alt="icone des gants" class="w-auto h-2/3 m-auto"/>
+                        <p class="text-white">Gants</p>
+                    </button>
+                    <button class="bg-primary p-2 m-1 rounded-xl h-20 w-20" id="belt-button">
+                        <img src="/media/icons/equipements/belt.png" alt="icone des ceintures" class="w-auto h-2/3 m-auto"/>
+                        <p class="text-white">Ceintures</p>
+                    </button>
+                    <button class="bg-primary p-2 m-1 rounded-xl h-20 w-20" id="ring-button">
+                        <img src="/media/icons/equipements/ring.png" alt="icone des anneaux" class="w-auto h-2/3 m-auto"/>
+                        <p class="text-white">Anneaux</p>
+                    </button>
+                    <button class="bg-primary p-2 m-1 rounded-xl h-20 w-20" id="amulet-button">
+                        <img src="/media/icons/equipements/amulet.png" alt="icone des amulettes" class="w-auto h-2/3 m-auto"/>
+                        <p class="text-white">Amulettes</p>
+                    </button>
+                    <button class="hidden bg-primary p-2 m-1 rounded-xl w-20" id="weapon-button">
+                    </button>
+                </div>
+                <div>
+                    {% for equipement in equipements %}
+                        {% if forloop.first %}
+                            <div id="{{ equipement }}-selection" class="w-full h-full flex m-1 border-solid border-2 text-white">
+                                
+                            </div>
+                        {% else %}
+                            <div id="{{ equipement }}-selection" class="hidden w-full h-full flex m-1 border-solid border-2 text-white">
+                                
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                    <div id="weapon-selection" class="hidden w-full h-full flex m-1 border-solid border-2 text-white">
+                        Merci de sélectionner une classe.
+                    </div>
+                </div>
+                <script>
+                    selected_equipement_panel = document.querySelector("#helmet-selection");
+                    selected_equipement_button = document.querySelector("#helmet-button");
+
+                    equipements.forEach(function(equipement){
+                        getEquipementByType(equipement);
+                    });
+
+                    equipements.forEach(function(equipement){
+                        document.querySelector(`#${equipement}-button`).addEventListener("click", () => {
+                            if (selected_equipement_panel !== document.querySelector(`#${equipement}-selection`)){
+                                selected_equipement_panel.classList.add("hidden");
+                                selected_equipement_panel = document.querySelector(`#${equipement}-selection`);
+
+                                selected_equipement_button.classList.remove("border-blue-500");
+                                selected_equipement_button.classList.remove("border-solid");
+                                selected_equipement_button.classList.remove("border-2");
+                                selected_equipement_button = document.querySelector(`#${equipement}-button`);
+                                selected_equipement_button.classList.add("border-blue-500");
+                                selected_equipement_button.classList.add("border-solid");
+                                selected_equipement_button.classList.add("border-2");
+
+                                selected_equipement_panel.classList.remove("hidden");
+                            }
+                        });
+                    });
+
+                    document.querySelector("#weapon-button").addEventListener("click", () => {
+                        if (selected_equipement_panel !== document.querySelector(`#weapon-selection`)){
+                            selected_equipement_panel.classList.add("hidden");
+                            selected_equipement_panel = document.querySelector(`#weapon-selection`);
+
+                            selected_equipement_button.classList.remove("border-blue-500");
+                            selected_equipement_button.classList.remove("border-solid");
+                            selected_equipement_button.classList.remove("border-2");
+                            selected_equipement_button = document.querySelector(`#weapon-button`);
+                            selected_equipement_button.classList.add("border-blue-500");
+                            selected_equipement_button.classList.add("border-solid");
+                            selected_equipement_button.classList.add("border-2");
+
+                            selected_equipement_panel.classList.remove("hidden");
+                        }
+                    });
+                </script>
+            </div>
+        </div>
+    </div>
+{% endblock content %}

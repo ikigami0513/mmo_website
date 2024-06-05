@@ -1,0 +1,141 @@
+{% load static %}
+<!Doctype html>
+<html lang="fr">
+    <head>
+        <meta charset="UTF-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <title>{% block title %}Characters Builder{% endblock title %}</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script>
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        colors: {
+                            primary: "#77A65A",
+                            secondary: '#2D2925',
+                            third: '#3B3631'
+                        },
+                        spacing: {
+                            '19': '4.75rem',
+                            '41': '10.25rem',
+                            '42': '10.50rem',
+                            '42.5': '10.625rem',
+                            '43': '10.75rem',
+                            '65': '16.25rem',
+                            '66': '16.5rem',
+                            '67': '16.75rem',
+                            '68': '17rem',
+                            '69': '17.25rem',
+                            '81': '20.25rem',
+                            '82': '20.50rem',
+                            '83': '20.75rem',
+                            '84': '21rem',
+                            '100': '25rem',
+                            '104': '26rem',
+                            '108': '27rem',
+                            '112': '28rem',
+                            '116': '29rem',
+                            '120': '30rem',
+                            '124': '31rem',
+                            '128': '32rem',
+                            '132': '33rem',
+                            '134': '33.5rem',
+                            'left': '3%',
+                            'right': '17%',
+                        }
+                    }
+                }
+            }
+        </script>
+        {% block extra_css %}{% endblock extra_css %}
+        {% block extra_js %}{% endblock extra_js %}
+    </head>
+    <body class="bg-secondary">
+        <div class="bg-primary text-white py-2 px-4">
+            <div class="container mx-auto flex justify-between items-center">
+                <div class="flex items-center">
+                    <a href="{% url 'app_index' %}" class="text-xl font-bold">Characters Builder</a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="relative group">
+                        <div class="flex items-center">
+                            <button class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded">
+                                <span class="mr-2">Encyclopédie</span>
+                            </button>
+                        </div>
+                        <div class="absolute left-0 hidden py-2 w-112 bg-third text-white rounded shadow-lg z-10 group-hover:block">
+                            <div class="container flex justify-between items-center">
+                                <div class="m-4">
+                                    <h4 class="underline">Armes</h4>
+                                    <ul class="my-2">
+                                        <li><a href="{% url "app_encyclopedie" type="epees" %}" class="block px-4 py-2 hover:bg-primary hover:text-white">Épées</a></li>
+                                        <li><a href="{% url "app_encyclopedie" type="arcs" %}" class="block px-4 py-2 hover:bg-primary hover:text-white">Arcs</a></li>
+                                        <li><a href="{% url "app_encyclopedie" type="lances" %}" class="block px-4 py-2 hover:bg-primary hover:text-white">Lances</a></li>
+                                    </ul>
+                                </div>
+                                <div class="m-4">
+
+                                </div>
+                                <div class="m-4">
+                                    <h4 class="underline">Équipements</h4>
+                                    <div class="flex">
+                                        <ul class="my-2">
+                                            <li><a href="{% url "app_encyclopedie" type="casques" %}" class="block px-4 py-2 hover:bg-primary hover:text-white">Casque</a></li>
+                                            <li><a href="{% url "app_encyclopedie" type="armures" %}" class="block px-4 py-2 hover:bg-primary hover:text-white">Armure</a></li>
+                                            <li><a href="{% url "app_encyclopedie" type="pantalons" %}" class="block px-4 py-2 hover:bg-primary hover:text-white">Pantalon</a></li>
+                                            <li><a href="{% url "app_encyclopedie" type="bottes" %}" class="block px-4 py-2 hover:bg-primary hover:text-white">Bottes</a></li>
+                                        </ul>
+                                        <ul class="my-2">
+                                            <li><a href="{% url "app_encyclopedie" type="gants" %}" class="block px-4 py-2 hover:bg-primary hover:text-white">Gants</a></li>
+                                            <li><a href="{% url "app_encyclopedie" type="ceintures" %}" class="block px-4 py-2 hover:bg-primary hover:text-white">Ceinture</a></li>
+                                            <li><a href="{% url "app_encyclopedie" type="anneaux" %}" class="block px-4 py-2 hover:bg-primary hover:text-white">Anneaux</a></li>
+                                            <li><a href="{% url "app_encyclopedie" type="amulettes" %}" class="block px-4 py-2 hover:bg-primary hover:text-white">Amulettes</a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% if user.is_authenticated %}
+                        <div class="relative group">
+                            <div class="flex items-center">
+                                <button class="flex bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded">
+                                    <span class="mr-2">Personnages</span>
+                                </button>
+                            </div>
+                            <div class="absolute left-0 hidden py-2 w-30 bg-third text-white rounded shadow-lg z-10 group-hover:block">
+                                <div class="container flex justify-between items-center">
+                                    <div class="mx-2">
+                                        <ul>
+                                            <li><a href="{% url "app_player_list" %}" class="block px-4 py-2 hover:bg-primary hover:text-white">Lister</a></li>
+                                            <li><a href="{% url "app_player_create" %}" class="block px-4 py-2 hover:bg-primary hover:text-white">Créer</a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="relative group">
+                            <div class="flex items-center">
+                                <button class="flex bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded">
+                                    <span class="mr-2">{{ user.username }}</span>
+                                </button>
+                            </div>
+                            <ul class="absolute left-0 hidden py-2 w-40 bg-third text-white rounded shadow-lg z-10 group-hover:block">
+                                {% if user.is_superuser %}
+                                    <li><a href="{% url "admin:index" %}" class="block px-4 py-2 hover:bg-primary hover:text-white">Administration</a></li>
+                                    <li><a href="/media/MCD.pdf" target="_blank" class="block px-4 py-2 hover:bg-primary hover:text-white">MCD</a></li>
+                                    <hr class="m-2"/>
+                                {% endif %}
+                                <li><a href="{% url "app_logout" %}" class="block px-4 py-2 hover:bg-primary hover:text-white">Déconnexion</a></li>
+                            </ul>
+                        </div>
+                    {% else %}
+                        <a href="{% url "app_login" %}" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded">Connexion</a>
+                        <a href="{% url 'app_register' %}" class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded">Inscription</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% block content %}{% endblock content %}
+    </body>
+</html>

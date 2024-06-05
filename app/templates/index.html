@@ -1,0 +1,116 @@
+{% extends "layout.html" %}
+
+{% block title %}Characters Builder{% endblock title %}
+
+{% block content %}
+    <div class="m-auto w-5/6 items-center py-4">
+        <div class="flex text-white text-2xl bg-third m-2 p-2 rounded-lg">
+            Nombre de personnages crées : {{ nb_characters }}
+        </div>
+        <div class="py-4"></div>
+        <div class="text-3xl text-white underline">Derniers personnages crées :</div>
+        {% for character in characters %}
+            <div class="flex text-white bg-third m-2 rounded-lg">
+                <div class="flex flex-col items-center justify-center text-center">
+                    <div>
+                        <img src="{{ character.classe.icon.url }}" class="w-24 h-24" />
+                    </div>
+                    <div>
+                        <p class="text-lg">{{ character.classe.name }}</p>
+                    </div>
+                </div>
+                <div class="flex flex-col items-center justify-center text-center">
+                    <div>
+                        <img src="{{ character.race.icon.url }}" class="w-24 h-24" />
+                    </div>
+                    <div>
+                        <p class="text-lg">{{ character.race.name }}</p>
+                    </div>
+                </div>
+                <div class="m-4 flex items-center justify-content">
+                    <ul>
+                        <li class="my-2">Nom : {{ character.name }}</li>
+                        <li class="my-2">Niveau : {{ character.level }}</li>
+                    </ul>
+                </div>
+                <div class="flex items-center justify-content">
+                    <ul class="flex">
+                        <li>
+                            {% if character.weapon is None %}
+                                <img src="/media/interdit.png" class="w-24 h-24 m-1"/>
+                            {% else %}
+                                <img src="{{ character.weapon.picture.url }}" class="w-24 h-24 m-1"/>
+                            {% endif %}
+                        </li>
+                        <li>
+                            {% if character.helmet is None %}
+                                <img src="/media/interdit.png" class="w-24 h-24 m-1"/>
+                            {% else %}
+                                <img src="{{ character.helmet.picture.url }}" class="w-24 h-24 m-1"/>
+                            {% endif %}
+                        </li>
+                        <li>
+                            {% if character.armor is None %}
+                                <img src="/media/interdit.png" class="w-24 h-24 m-1"/>
+                            {% else %}
+                                <img src="{{ character.armor.picture.url }}" class="w-24 h-24 m-1"/>
+                            {% endif %}
+                        </li>
+                        <li>
+                            {% if character.pant is None %}
+                                <img src="/media/interdit.png" class="w-24 h-24 m-1"/>
+                            {% else %}
+                                <img src="{{ character.pant.picture.url }}" class="w-24 h-24 m-1"/>
+                            {% endif %}
+                        </li>
+                        <li>
+                            {% if character.boots is None %}
+                                <img src="/media/interdit.png" class="w-24 h-24 m-1"/>
+                            {% else %}
+                                <img src="{{ character.boots.picture.url }}" class="w-24 h-24 m-1"/>
+                            {% endif %}
+                        </li>
+                        <li>
+                            {% if character.left_gantelet is None %}
+                                <img src="/media/interdit.png" class="w-24 h-24 m-1"/>
+                            {% else %}
+                                <img src="{{ character.left_gantelet.picture.url }}" class="w-24 h-24 m-1"/>
+                            {% endif %}
+                        </li>
+                        <li>
+                            {% if character.right_gantelet is None %}
+                                <img src="/media/interdit.png" class="w-24 h-24 m-1"/>
+                            {% else %}
+                                <img src="{{ character.right_gantelet.picture.url }}" class="w-24 h-24 m-1"/>
+                            {% endif %}
+                        </li>
+                        <li>
+                            {% if character.belt is None %}
+                                <img src="/media/interdit.png" class="w-24 h-24 m-1"/>
+                            {% else %}
+                                <img src="{{ character.belt.picture.url }}" class="w-24 h-24 m-1"/>
+                            {% endif %}
+                        </li>
+                        <li>
+                            {% if character.ring is None %}
+                                <img src="/media/interdit.png" class="w-24 h-24 m-1"/>
+                            {% else %}
+                                <img src="{{ character.ring.picture.url }}" class="w-24 h-24 m-1"/>
+                            {% endif %}
+                        </li>
+                        <li>
+                            {% if character.amulet is None %}
+                                <img src="/media/interdit.png" class="w-24 h-24 m-1"/>
+                            {% else %}
+                                <img src="{{ character.amulet.picture.url }}" class="w-24 h-24 m-1"/>
+                            {% endif %}
+                        </li>
+                    </ul>
+                </div>
+                <div class="flex justify-content items-center m-12">
+                    <p>Crée par {{ character.user.username }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endblock content %}

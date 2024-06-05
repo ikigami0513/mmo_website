@@ -1,0 +1,198 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ type|capfirst }}{% endblock title %}
+
+{% block extra_js %}
+    <script>
+        document.addEventListener("DOMContentLoaded", function(){
+            const toggle_button = document.querySelector("#toggleButton");
+            const toggle_div = document.querySelector("#toggleDiv");
+
+            const down_arrow = document.querySelector("#down_arrow");
+            const top_arrow = document.querySelector("#top_arrow")
+
+            toggle_button.addEventListener("click", () => {
+                toggle_div.classList.toggle('hidden');
+                down_arrow.classList.toggle('hidden');
+                top_arrow.classList.toggle('hidden');
+            });
+
+            function handleSearchButtonEvent() {
+                const url = "{% url "app_encyclopedie_search" %}";
+                const csrfToken = document.getElementsByName("csrfmiddlewaretoken")[0].value;
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                    },
+                    body: JSON.stringify({
+                        'type': "{{ type }}",
+                        'data': {
+                            'name': document.querySelector("#name").value,
+                            'min_required_level': document.querySelector("#min_required_level").value,
+                            'max_required_level': document.querySelector("#max_required_level").value,
+                            'min_hp': document.querySelector("#min_hp").value,
+                            'max_hp': document.querySelector("#max_hp").value,
+                            'min_mana': document.querySelector("#min_mana").value,
+                            'max_mana': document.querySelector("#max_mana").value,
+                            'min_attack': document.querySelector("#min_attack").value,
+                            'max_attack': document.querySelector("#max_attack").value,
+                            'min_defense': document.querySelector("#min_defense").value,
+                            'max_defense': document.querySelector("#max_defense").value,
+                            'min_speed': document.querySelector("#min_speed").value,
+                            'max_speed': document.querySelector("#max_speed").value,
+                            'min_luck': document.querySelector("#min_luck").value,
+                            'max_luck': document.querySelector("#max_luck").value,
+                        }
+                    }),
+                })
+                .then((response) => {
+                    if(!response.ok){
+                        throw new Error(`Erreur HTTP: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then((data) => {
+                    var items_list = document.querySelector("#items-list");
+                    items_list.innerHTML = "";
+                    items = data.items; // dictionnaire contenant tous les items correspondant aux filtres de recherche
+                    items.forEach(item => {
+                        items_list.innerHTML += `
+                        <div class="w-1/2 md:w-1/3 lg:w-1/4 xl:w-1/5 p-2">
+                            <div class="flex flex-col h-full relative max-w-sm rounded overflow-hidden shadow-lg bg-third">
+                                <img class="w-full p-2" src="${item.picture}" alt="Image de l'article">
+                                <div class="px-6 py-4 flex-grow">
+                                    <div class="font-bold text-xl mb-2 text-white underline">${item.name}</div>
+                                    <div class="text-m mb-2 text-white">Niveau requis : ${item.required_level}</div>
+                                    <div class="flex text-white">
+                                        <ul class="my-2 mx-auto">
+                                            <li>Points de vie : ${item.hp}</li>
+                                            <li>Mana : ${item.mana}</li>
+                                            <li>Attaque : ${item.attack}</li>
+                                        </ul>
+                                        <ul class="my-2 mx-auto">
+                                            <li>Défense : ${item.defense}</li>
+                                            <li>Vitesse : ${item.speed}</li>
+                                            <li>Chance : ${item.luck}</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        `;
+                    })
+                })
+                .catch((error) => {
+                    // Traitement des erreurs
+                })
+            }
+            
+            const search_button = document.querySelector("#search_button");
+            search_button.addEventListener("click", handleSearchButtonEvent);
+
+    
+            const reset_button = document.querySelector("#reset_button");
+            reset_button.addEventListener("click", () => {
+                document.querySelector("#name").value = "";
+                document.querySelector("#min_required_level").value = "";
+                document.querySelector("#max_required_level").value = "";
+                document.querySelector("#min_hp").value = "";
+                document.querySelector("#max_hp").value = "";
+                document.querySelector("#min_mana").value = "";
+                document.querySelector("#max_mana").value = "";
+                document.querySelector("#min_attack").value = "";
+                document.querySelector("#max_attack").value = "";
+                document.querySelector("#min_defense").value = "";
+                document.querySelector("#max_defense").value = "";
+                document.querySelector("#min_speed").value = "";
+                document.querySelector("#max_speed").value = "";
+                document.querySelector("#min_luck").value = "";
+                document.querySelector("#max_luck").value = "";
+                handleSearchButtonEvent();
+            });
+        });
+    </script>
+{% endblock extra_js %}
+
+{% block content %}
+    <div class="p-4">
+        <button id="toggleButton" class="flex items-center justify-center text-white p-2 rounded-md">
+            <p class="mx-2">Filtres</p>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" id="down_arrow" class="bi bi-chevron-down" viewBox="0 0 16 16">
+                <path d="M1.646 5.646a.5.5 0 0 1 .708 0L8 11.293l5.646-5.647a.5.5 0 1 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/>
+            </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" id="top_arrow" class="bi bi-chevron-up hidden" viewBox="0 0 16 16">
+                <path d="M1.646 10.646a.5.5 0 0 1 .708 0L8 5.293l5.646 5.647a.5.5 0 1 1-.708.708L8 6.707 2.354 12.354a.5.5 0 0 1-.708-.708z"/>
+            </svg>
+        </button>
+        <div id="toggleDiv" class="hidden mt-4 p-4 bg-third rounded-lg text-white">
+            <div class="w-full flex">
+                {% csrf_token %}
+                <div class="m-2">
+                    <div class="underline text-xl">Informations</div>
+                    <ul>
+                        <li class="block px-4 py-2">
+                            <label for="name" class="mx-2">Nom</label>
+                            <input type="text" id="name" name="name" class="text-black rounded-lg p-2"/>
+                        </li>
+                        <li class="block px-4 py-2">
+                            <label for="required_level" class="mx-2">Niveau requis :</label>
+                            entre <input type="number" id="min_required_level" name="min_required_level" class="w-20 text-black rounded-lg p-2"/>
+                            et <input type="number" id="max_required_level" name="max_required_level" class="w-20 text-black rounded-lg p-2"/>
+                        </li>
+                    </ul>
+                </div>
+                <div class="m-2">
+                    <div class="underline text-xl">Stats</div>
+                    <div class="flex">
+                        <ul class="my-2 mx-auto">
+                            <li class="m-2">Points de vie : entre <input type="number" id="min_hp" name="min_hp" class="w-20 text-black rounded-lg p-2"/> et <input type="number" id="max_hp" name="max_hp" class="w-20 text-black rounded-lg p-2"/> </li>
+                            <li class="m-2">Mana : entre <input type="number" id="min_mana" name="min_mana" class="w-20 text-black rounded-lg p-2"/> et <input type="number" id="max_mana" name="max_mana" class="w-20 text-black rounded-lg p-2"/></li>
+                            <li class="m-2">Attaque : entre <input type="number" id="min_attack" name="min_attack" class="w-20 text-black rounded-lg p-2"/> et <input type="number" id="max_attack" name="max_attack" class="w-20 text-black rounded-lg p-2"/></li>
+                        </ul>
+                        <ul class="my-2 mx-auto">
+                            <li class="m-2">Défense : entre <input type="number" id="min_defense" name="min_defense" class="w-20 text-black rounded-lg p-2"/> et <input type="number" id="max_defense" name="max_defense" class="w-20 text-black rounded-lg p-2"/></li>
+                            <li class="m-2">Vitesse : entre <input type="number" id="min_speed" name="min_speed" class="w-20 text-black rounded-lg p-2"/> et <input type="number" id="max_speed" name="max_speed" class="w-20 text-black rounded-lg p-2"/></li>
+                            <li class="m-2">Chance : entre <input type="number" id="min_luck" name="min_luck" class="w-20 text-black rounded-lg p-2"/> et <input type="number" id="max_luck" name="max_luck" class="w-20 text-black rounded-lg p-2"/></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="w-full">
+                <button class="bg-primary hover:bg-green-600 text-white py-2 px-4 rounded" id="search_button" name="search_button">
+                    <span class="mr-2">Rechercher</span>
+                </button>
+                <button class="bg-primary hover:bg-green-600 text-white py-2 px-4 rounded" id="reset_button" name="reset_button">
+                    <span class="mr-2">Réinitialiser</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex flex-wrap" id="items-list">
+        {% for item in data %}
+            <div class="w-1/2 md:w-1/3 lg:w-1/4 xl:w-1/5 p-2">
+                <div class="flex flex-col h-full relative max-w-sm rounded overflow-hidden shadow-lg bg-third">
+                    <img class="w-full p-2" src="{{ item.picture.url }}" alt="Image de l'article">
+                    <div class="px-6 py-4 flex-grow">
+                        <div class="font-bold text-xl mb-2 text-white underline">{{ item.name }}</div>
+                        <div class="text-m mb-2 text-white">Niveau requis : {{ item.required_level }}</div>
+                        <div class="flex text-white">
+                            <ul class="my-2 mx-auto">
+                                <li>Points de vie : {{ item.hp }}</li>
+                                <li>Mana : {{ item.mana }}</li>
+                                <li>Attaque : {{ item.attack }}</li>
+                            </ul>
+                            <ul class="my-2 mx-auto">
+                                <li>Défense : {{ item.defense }}</li>
+                                <li>Vitesse : {{ item.speed }}</li>
+                                <li>Chance : {{ item.luck }}</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endblock content %}
